@@ -2,22 +2,33 @@
 #include <stdint.h>
 #include <mpfr.h>
 
-double table_Cjk[7][4];
+double table_sin_Cjk[7][4];
+double table_cos_Cjk[7][4];
 
-void init_table() {
+void init_tables() {
     int j, k;
+    mpfr_t cjk, sin_cjk, cos_cjk;
+
+    mpfr_init2(cjk, 256);
+    mpfr_init2(sin_cjk, 256);
+    mpfr_init2(cos_cjk, 256);
     for (j = -1; j >= -4; j--) {
         for (k = 1; k <= 7; k++) {
             int exponent = 1023 + j;
             uint64_t tmp = (uint64_t)exponent << 52;
-            double cjk = (*(double*)&tmp) * (1.0 + (k * 0.125));
+            double cjk_value = (*(double*)&tmp) * (1.0 + (k * 0.125));
 
-            table_Cjk[(-1)*j - 1][k - 1] = cjk;
+            mpfr_set_d(cjk, cjk_value, MPFR_RNDN);
+            mpfr_sin(sin_cjk, cjk, MPFR_RNDN);
+            mpfr_cos(cos_cjk, cjk, MPFR_RNDN);
+
+            table_sin_Cjk[(-1)*j - 1][k - 1] = mpfr_get_d(sin_cjk, MPFR_RNDN);
+            table_cos_Cjk[(-1)*j - 1][k - 1] = mpfr_get_d(cos_cjk, MPFR_RNDN);
         }
     }
 }
 
-void print_table() {
+void print_sin_table() {
     int i, j;
     printf("%10s", "X");
     for (j = 1; j <= 7; j++) {
@@ -27,7 +38,23 @@ void print_table() {
     for (i = 1; i <= 4; i++) {
         printf("%10d   ", i);
         for (j = 1; j <= 7; j++) {
-            printf("%10lf   ", table_Cjk[i][j]);
+            printf("%10lf   ", table_sin_Cjk[i][j]);
+        }
+        printf("\n");
+    }
+}
+
+void print_cos_table() {
+    int i, j;
+    printf("%10s", "X");
+    for (j = 1; j <= 7; j++) {
+        printf("%10d   ", j);
+    }
+    printf("\n");
+    for (i = 1; i <= 4; i++) {
+        printf("%10d   ", i);
+        for (j = 1; j <= 7; j++) {
+            printf("%10lf   ", table_cos_Cjk[i][j]);
         }
         printf("\n");
     }
@@ -66,16 +93,33 @@ double sin_minimax(double x) {
     (-0x1.268826342f202p-45 + R * 
     0x1.62f40c5e99247p-22))))))))));
 
-    return R;
+    double cos_R = 0x1p0 + x * 
+    (0x1.9a90471eedea2p-101 + x * 
+    (-0x1p-1 + x * 
+    (-0x1.c35565375f36bp-89 + x * 
+    (0x1.5555555555555p-5 + x * 
+    (0x1.ff3d9ead9207dp-79 + x * 
+    (-0x1.6c16c16c13c9cp-10 + x * 
+    (-0x1.a18e77efe123p-70 + x * 
+    (0x1.a01a008ec3853p-16 + x * 
+    (0x1.be000f0503974p-63 + x * 
+    (-0x1.27c32619713b7p-22))))))))));
+
+    double result = table_sin_Cjk[(-1)*j - 1][k - 1] * cos_R + 
+                        table_cos_Cjk[(-1)*j - 1][k - 1] * sin_R;
+
+    return result;
 }
 
 int main() {
+
+    init_tables();
+    print_sin_table();
+    print_cos_table();
+
     double x = 3.14159265358979323846 / 16;
     double sin_R = sin_minimax(x);
     printf("sin_R: %.12lf\n", sin_R);
-
-    init_table();
-    print_table();
 
     return 0;
 }
