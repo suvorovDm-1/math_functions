@@ -1,7 +1,9 @@
-#include <stdio.h>
-#include <stdint.h>
 #include <string.h>
+#include <stdio.h>
+#include <random>
 #include <mpfr.h>
+#include <cmath>
+#include <cstdint>
 
 double table_sin_Cjk[7][4];
 double table_cos_Cjk[7][4];
@@ -94,7 +96,7 @@ double sin_minimax(double x) {
         uint64_t tmp = (uint64_t)exponent << 52;
         double cjk = (*(double*)&tmp) * (1.0 + (k * 0.125));
 
-        printf("x:%f j:%d k:%d cjk:%f\n\n", x, j, k, cjk);
+        // printf("x:%f j:%d k:%d cjk:%f\n\n", x, j, k, cjk);
 
         R = x - cjk;
     }
@@ -137,52 +139,47 @@ double sin_minimax(double x) {
 }
 
 int main() {
-    mpfr_t angle_pi_16, angle_pi_32, sin_res_16, sin_res_32;
-    double Pi = 3.14159265358979323846;
-    double pi_16 = Pi / 16, pi_32 = Pi / 32;
-    double res_pi_16, res_pi_32;
+    mpfr_t angle_mprf, res_mpfr;
+    double PI_4 = 0x1.921fb54442d1846ap-1;
+    double min_val = 0x1p-10;
+    uint64_t UINT_PI_4 = *(uint64_t*)&PI_4;
+    uint64_t UINT_MIN_VAL = *(uint64_t*)&min_val;
+    double my_angle, my_res;
     
     init_tables();
 
-    // Инициализация переменных с точностью 256 бит
-    mpfr_init2(angle_pi_16, 256);
-    mpfr_init2(angle_pi_32, 256);
-    mpfr_init2(sin_res_16, 256);
-    mpfr_init2(sin_res_32, 256);
+    mpfr_init2(angle_mprf, 256);
+    mpfr_init2(res_mpfr, 256);
 
-    // Установка значения угла (например, π/4)
-    mpfr_const_pi(angle_pi_16, MPFR_RNDN);
-    mpfr_div_ui(angle_pi_16, angle_pi_16, 16, MPFR_RNDN);
+    std::random_device rd;
+    std::mt19937_64 gen(rd());
+    std::uniform_int_distribution<uint64_t> dist(UINT_MIN_VAL, UINT_PI_4);
 
-    mpfr_const_pi(angle_pi_32, MPFR_RNDN);
-    mpfr_div_ui(angle_pi_32, angle_pi_32, 32, MPFR_RNDN);
+    uint64_t max_diff = 0;
+    while (true) {
+        uint64_t rand_val = dist(gen);
 
-    // Вычисление синуса и косинуса
-    mpfr_sin(sin_res_16, angle_pi_16, MPFR_RNDN);
-    mpfr_sin(sin_res_32, angle_pi_32, MPFR_RNDN);
+        my_angle = *(double*)&rand_val;
+        my_res = sin_minimax(my_angle);
 
-    res_pi_16 = sin_minimax(pi_16);
-    res_pi_32 = sin_minimax(pi_32);
+        mpfr_set_d(angle_mprf, my_angle, MPFR_RNDN);
+        mpfr_sin(res_mpfr, angle_mprf, MPFR_RNDN);
 
-    // Вывод результатов
-    printf("MPFR: sin(π/16) = ");
-    mpfr_printf("%.25Rf\n", sin_res_16);
-    printf("MY_FUNC: sin(π/16) = ");
-    printf("%.25f\n", res_pi_16);
-    printf("Bitwise difference for sin(π/16): %lu\n", difference_in_bits(mpfr_get_d(sin_res_16, MPFR_RNDN), res_pi_16));
+        printf("VALUE: %lu => %f -> %f\n", rand_val, my_angle, my_res);
+        printf("MPFR: sin(rand_x) = ");
+        mpfr_printf("%.25Rf\n", res_mpfr);
+        printf("MY_FUNC: sin(rand_x) = ");
+        printf("%.25f\n", my_res);
+        uint64_t diff_res = difference_in_bits(mpfr_get_d(res_mpfr, MPFR_RNDN), my_res);
 
-    printf("MPFR: sin(π/32) = ");
-    mpfr_printf("%.25Rf\n", sin_res_32);
-    printf("MY_FUNC: sin(π/32) = ");
-    printf("%.25f\n", res_pi_32);
-    printf("Bitwise difference for sin(π/16): %lu\n", difference_in_bits(mpfr_get_d(sin_res_32, MPFR_RNDN), res_pi_32));
+        if (diff_res > max_diff) max_diff = diff_res;
+        
+        printf("CURR DIFF: %lu\n", diff_res);
+        printf("MAX DIFF: %lu\n", max_diff);
+    }
 
-    // Очистка памяти
-    mpfr_clear(angle_pi_16);
-    mpfr_clear(angle_pi_32);
-    mpfr_clear(sin_res_16);
-    mpfr_clear(sin_res_32);
-    mpfr_free_cache();
+    mpfr_clear(angle_mprf);
+    mpfr_clear(res_mpfr);
 
     return 0;
 }
