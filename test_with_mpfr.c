@@ -1,9 +1,26 @@
 #include <stdio.h>
 #include <stdint.h>
+#include <string.h>
 #include <mpfr.h>
 
 double table_sin_Cjk[7][4];
 double table_cos_Cjk[7][4];
+
+// uint64_t difference_in_bits(double mpfr_result, double my_result) {
+//     uint64_t mpfr_bits, my_bits;
+
+//     memcpy(&mpfr_bits, &mpfr_result, sizeof(uint64_t));
+//     memcpy(&my_bits, &my_result, sizeof(uint64_t));
+    
+//     return mpfr_bits > my_bits ? mpfr_bits - my_bits : my_bits - mpfr_bits;
+// }
+
+uint64_t difference_in_bits(double mpfr_result, double my_result) {
+    uint64_t mpfr_bits = *(uint64_t*)&mpfr_result;
+    uint64_t my_bits = *(uint64_t*)&my_result;
+
+    return mpfr_bits > my_bits ? mpfr_bits - my_bits : my_bits - mpfr_bits;
+}
 
 void init_tables() {
     int j, k;
@@ -64,22 +81,24 @@ double sin_minimax(double x) {
     uint64_t bits = *(uint64_t*)&x;
     uint64_t sign_mask = 0x7FFFFFFFFFFFFFFF;
     bits &= sign_mask;
-
+    double R;
+    int k = -1;
     int j = (bits >> 52) - 1023;
-    if (j < -4) j = -4;
-    if (j > -1) j = -1;
+    
+    if (j < -4) R = x;
+    else {
+        uint64_t mantissa = bits & 0xFFFFFFFFFFFFF;
+        k = (mantissa >> (52 + j)) & 0x7;
 
-    uint64_t mantissa = bits & 0xFFFFFFFFFFFFF;
-    int k = (mantissa >> (52 + j)) & 0x7;
-    if (k == 0) k = 1;
+        int exponent = 1023 + j;
+        uint64_t tmp = (uint64_t)exponent << 52;
+        double cjk = (*(double*)&tmp) * (1.0 + (k * 0.125));
 
-    int exponent = 1023 + j;
-    uint64_t tmp = (uint64_t)exponent << 52;
-    double cjk = (*(double*)&tmp) * (1.0 + (k * 0.125));
+        printf("x:%f j:%d k:%d cjk:%f\n\n", x, j, k, cjk);
 
-    printf("x:%f j:%d k:%d cjk:%f", x, j, k, cjk);
-
-    double R = x - cjk;
+        R = x - cjk;
+    }
+    
 
     double sin_R = 0x1.c5f0261f1868cp-95 + R * 
     (0x1p0 + R * (-0x1.f41bcf0494c2ap-81 + R * 
@@ -93,24 +112,28 @@ double sin_minimax(double x) {
     (-0x1.268826342f202p-45 + R * 
     0x1.62f40c5e99247p-22))))))))));
 
-    double cos_R = 0x1p0 + x * 
-    (0x1.9a90471eedea2p-101 + x * 
-    (-0x1p-1 + x * 
-    (-0x1.c35565375f36bp-89 + x * 
-    (0x1.5555555555555p-5 + x * 
-    (0x1.ff3d9ead9207dp-79 + x * 
-    (-0x1.6c16c16c13c9cp-10 + x * 
-    (-0x1.a18e77efe123p-70 + x * 
-    (0x1.a01a008ec3853p-16 + x * 
-    (0x1.be000f0503974p-63 + x * 
+    double cos_R = 0x1p0 + R * 
+    (0x1.9a90471eedea2p-101 + R * 
+    (-0x1p-1 + R * 
+    (-0x1.c35565375f36bp-89 + R * 
+    (0x1.5555555555555p-5 + R * 
+    (0x1.ff3d9ead9207dp-79 + R * 
+    (-0x1.6c16c16c13c9cp-10 + R * 
+    (-0x1.a18e77efe123p-70 + R * 
+    (0x1.a01a008ec3853p-16 + R * 
+    (0x1.be000f0503974p-63 + R * 
     (-0x1.27c32619713b7p-22))))))))));
 
-    double result = table_sin_Cjk[(-1)*j - 1][k - 1] * cos_R + 
+    double result;
+    if (k == -1) {
+        result = sin_R;
+    }
+    else {
+        result = table_sin_Cjk[(-1)*j - 1][k - 1] * cos_R + 
                         table_cos_Cjk[(-1)*j - 1][k - 1] * sin_R;
-
+    }
+   
     return result;
-
-    return sin_R;
 }
 
 int main() {
@@ -146,11 +169,13 @@ int main() {
     mpfr_printf("%.25Rf\n", sin_res_16);
     printf("MY_FUNC: sin(π/16) = ");
     printf("%.25f\n", res_pi_16);
+    printf("Bitwise difference for sin(π/16): %lu\n", difference_in_bits(mpfr_get_d(sin_res_16, MPFR_RNDN), res_pi_16));
 
     printf("MPFR: sin(π/32) = ");
     mpfr_printf("%.25Rf\n", sin_res_32);
     printf("MY_FUNC: sin(π/32) = ");
     printf("%.25f\n", res_pi_32);
+    printf("Bitwise difference for sin(π/16): %lu\n", difference_in_bits(mpfr_get_d(sin_res_32, MPFR_RNDN), res_pi_32));
 
     // Очистка памяти
     mpfr_clear(angle_pi_16);

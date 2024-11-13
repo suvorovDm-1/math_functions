@@ -93,16 +93,16 @@ double sin_minimax(double x) {
     (-0x1.268826342f202p-45 + R * 
     0x1.62f40c5e99247p-22))))))))));
 
-    double cos_R = 0x1p0 + x * 
-    (0x1.9a90471eedea2p-101 + x * 
-    (-0x1p-1 + x * 
-    (-0x1.c35565375f36bp-89 + x * 
-    (0x1.5555555555555p-5 + x * 
-    (0x1.ff3d9ead9207dp-79 + x * 
-    (-0x1.6c16c16c13c9cp-10 + x * 
-    (-0x1.a18e77efe123p-70 + x * 
-    (0x1.a01a008ec3853p-16 + x * 
-    (0x1.be000f0503974p-63 + x * 
+    double cos_R = 0x1p0 + R * 
+    (0x1.9a90471eedea2p-101 + R * 
+    (-0x1p-1 + R * 
+    (-0x1.c35565375f36bp-89 + R * 
+    (0x1.5555555555555p-5 + R * 
+    (0x1.ff3d9ead9207dp-79 + R * 
+    (-0x1.6c16c16c13c9cp-10 + R * 
+    (-0x1.a18e77efe123p-70 + R * 
+    (0x1.a01a008ec3853p-16 + R * 
+    (0x1.be000f0503974p-63 + R * 
     (-0x1.27c32619713b7p-22))))))))));
 
     double result = table_sin_Cjk[(-1)*j - 1][k - 1] * cos_R + 
