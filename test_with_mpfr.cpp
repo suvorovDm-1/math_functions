@@ -5,17 +5,23 @@
 #include <cmath>
 #include <cstdint>
 
-double table_sin_Cjk[7][4];
-double table_cos_Cjk[7][4];
+uint64_t table_sin_Cjk[32] = {0x3fe0362939c69955, 0x3fe1e7343236574c, 0x3fe386597456282b, 0x3fe511f9fd7b351c, 
+0x3fe6888a4e134b2f, 0x3fe7e893f5037959, 0x3fe930b705f9f85a, 0x3fea5fab793d29c8, 
+0x3fd1c37d64c6b876, 0x3fd3ad129769d3d8, 0x3fd591bc9fa2f597, 0x3fd7710255764214, 
+0x3fd94a6be9f546c5, 0x3fdb1d8305321617, 0x3fdce9d2e3d4a51f, 0x3fdeaee8744b05f0, 
+0x3fc3eb312c5d66cb, 0x3fc5e44fcfa126f3, 0x3fc7dc102fbaf2b5, 0x3fc9d252d0cec312, 
+0x3fcbc6f84edc6199, 0x3fcdb9e15fb5a5d0, 0x3fcfaaeed4f31577, 0x3fd0cd00cef36436, 
+0x3fb7f701032550e4, 0x3fb9f4902d55d1f9, 0x3fbbf1b78568391d, 0x3fbdee6f16c1cce6, 
+0x3fbfeaaeee86ee36, 0x3fc0f3378ddd71d1, 0x3fc1f0d3d7afceaf, 0x3fc2ee285e4ab88f};
 
-// uint64_t difference_in_bits(double mpfr_result, double my_result) {
-//     uint64_t mpfr_bits, my_bits;
-
-//     memcpy(&mpfr_bits, &mpfr_result, sizeof(uint64_t));
-//     memcpy(&my_bits, &my_result, sizeof(uint64_t));
-    
-//     return mpfr_bits > my_bits ? mpfr_bits - my_bits : my_bits - mpfr_bits;
-// }
+uint64_t table_cos_Cjk[32] = {0x3feb96eeef58840e, 0x3fea85ed4373e02d, 0x3fe95a67e00cb1fd, 0x3fe8158a31916d5d, 
+0x3fe6b898fa9efb5d, 0x3fe544f10f592ca5, 0x3fe3bc05f8b3a656, 0x3fe21f608107e37a, 
+0x3feebe214f76efa8, 0x3fee733ea0193d40, 0x3fee20bf49acd6c1, 0x3fedc6b7eb995912, 
+0x3fed653f073e4040, 0x3fecfc6cfa52ad9f, 0x3fec8c5bf8ce1a84, 0x3fec1528065b7d50, 
+0x3fef9c340a7cc428, 0x3fef874c2e1eecf6, 0x3fef706bdf9ece1c, 0x3fef57948cff6797, 
+0x3fef3cc7c3b3d16e, 0x3fef20073086649f, 0x3fef01549f7deea1, 0x3feee0b1fbc0f11c, 
+0x3fefdc06bf7e6b9b, 0x3fefd5c94b43e000, 0x3fefcf0c800e99b1, 0x3fefc7d078d1bc88, 
+0x3fefc015527d5bd3, 0x3fefb7db2bfe0695, 0x3fefaf22263c4bd3, 0x3fefa5ea641c36f2};
 
 uint64_t difference_in_bits(double mpfr_result, double my_result) {
     uint64_t mpfr_bits = *(uint64_t*)&mpfr_result;
@@ -24,64 +30,10 @@ uint64_t difference_in_bits(double mpfr_result, double my_result) {
     return mpfr_bits > my_bits ? mpfr_bits - my_bits : my_bits - mpfr_bits;
 }
 
-void init_tables() {
-    int j, k;
-    mpfr_t cjk, sin_cjk, cos_cjk;
-
-    mpfr_init2(cjk, 256);
-    mpfr_init2(sin_cjk, 256);
-    mpfr_init2(cos_cjk, 256);
-    for (j = -1; j >= -4; j--) {
-        for (k = 1; k <= 7; k++) {
-            int exponent = 1023 + j;
-            uint64_t tmp = (uint64_t)exponent << 52;
-            double cjk_value = (*(double*)&tmp) * (1.0 + (k * 0.125));
-
-            mpfr_set_d(cjk, cjk_value, MPFR_RNDN);
-            mpfr_sin(sin_cjk, cjk, MPFR_RNDN);
-            mpfr_cos(cos_cjk, cjk, MPFR_RNDN);
-
-            table_sin_Cjk[(-1)*j - 1][k - 1] = mpfr_get_d(sin_cjk, MPFR_RNDN);
-            table_cos_Cjk[(-1)*j - 1][k - 1] = mpfr_get_d(cos_cjk, MPFR_RNDN);
-        }
-    }
-}
-
-void print_sin_table() {
-    int i, j;
-    printf("%10s", "X");
-    for (j = 1; j <= 7; j++) {
-        printf("%10d   ", j);
-    }
-    printf("\n");
-    for (i = 1; i <= 4; i++) {
-        printf("%10d   ", i);
-        for (j = 1; j <= 7; j++) {
-            printf("%10lf   ", table_sin_Cjk[i][j]);
-        }
-        printf("\n");
-    }
-}
-
-void print_cos_table() {
-    int i, j;
-    printf("%10s", "X");
-    for (j = 1; j <= 7; j++) {
-        printf("%10d   ", j);
-    }
-    printf("\n");
-    for (i = 1; i <= 4; i++) {
-        printf("%10d   ", i);
-        for (j = 1; j <= 7; j++) {
-            printf("%10lf   ", table_cos_Cjk[i][j]);
-        }
-        printf("\n");
-    }
-}
-
 double sin_minimax(double x) {
     uint64_t bits = *(uint64_t*)&x;
     uint64_t sign_mask = 0x7FFFFFFFFFFFFFFF;
+    uint64_t sign = 0x8000000000000000 & bits;
     bits &= sign_mask;
     double R;
     int k = -1;
@@ -90,7 +42,7 @@ double sin_minimax(double x) {
     if (j < -4) R = x;
     else {
         uint64_t mantissa = bits & 0xFFFFFFFFFFFFF;
-        k = (mantissa >> (52 + j)) & 0x7;
+        k = (mantissa >> 49) & 0x7;
 
         int exponent = 1023 + j;
         uint64_t tmp = (uint64_t)exponent << 52;
@@ -98,44 +50,39 @@ double sin_minimax(double x) {
 
         // printf("x:%f j:%d k:%d cjk:%f\n\n", x, j, k, cjk);
 
-        R = x - cjk;
+        R = x - (cjk + 0x1p-5);
     }
     
+    double double_R = R*R;
 
-    double sin_R = 0x1.c5f0261f1868cp-95 + R * 
-    (0x1p0 + R * (-0x1.f41bcf0494c2ap-81 + R * 
-    (-0x1.5555555555555p-3 + R * 
-    (0x1.f93211fd72046p-70 + R * 
-    (0x1.111111110e667p-7 + R * 
-    (-0x1.59e56126ed6f9p-60 + R * 
-    (-0x1.a019ffd908d95p-13 + R * 
-    (0x1.7e72a473c5d21p-52 + R * 
-    (0x1.71621f6a299f4p-19 + R * 
-    (-0x1.268826342f202p-45 + R * 
-    0x1.62f40c5e99247p-22))))))))));
+    double sin_R = R * (0x1p0 + double_R * 
+    (-0x1.5555555555544p-3 + double_R * 
+    (0x1.1111110f7104p-7 + double_R * 
+    (-0x1.a01738588943ap-13))));
 
-    double cos_R = 0x1p0 + R * 
-    (0x1.9a90471eedea2p-101 + R * 
-    (-0x1p-1 + R * 
-    (-0x1.c35565375f36bp-89 + R * 
-    (0x1.5555555555555p-5 + R * 
-    (0x1.ff3d9ead9207dp-79 + R * 
-    (-0x1.6c16c16c13c9cp-10 + R * 
-    (-0x1.a18e77efe123p-70 + R * 
-    (0x1.a01a008ec3853p-16 + R * 
-    (0x1.be000f0503974p-63 + R * 
-    (-0x1.27c32619713b7p-22))))))))));
+
+    double cos_R = 0x1p0 + double_R * 
+    (-0x1.fffffffffffb2p-2 + double_R * 
+    (0x1.55555551ad371p-5 + double_R * 
+    (-0x1.6c139efb45fc6p-10)));
 
     double result;
     if (k == -1) {
         result = sin_R;
     }
     else {
-        result = table_sin_Cjk[(-1)*j - 1][k - 1] * cos_R + 
-                        table_cos_Cjk[(-1)*j - 1][k - 1] * sin_R;
+        int col_ind = k;
+        int row_ind = (-1)*j - 1;
+        uint64_t* cjk_sin = (table_sin_Cjk + row_ind * 8 + k);
+        uint64_t* cjk_cos = (table_cos_Cjk + row_ind * 8 + k);
+        double d_cjk_sin = *(double*)cjk_sin;
+        double d_cjk_cos = *(double*)cjk_cos;
+        result = d_cjk_sin * cos_R + d_cjk_cos * sin_R;
     }
-   
-    return result;
+    if (sign == 0)
+        return result;
+    else
+        return -1 * result;
 }
 
 int main() {
@@ -145,15 +92,13 @@ int main() {
     uint64_t UINT_PI_4 = *(uint64_t*)&PI_4;
     uint64_t UINT_MIN_VAL = *(uint64_t*)&min_val;
     double my_angle, my_res;
-    
-    init_tables();
-
-    mpfr_init2(angle_mprf, 256);
-    mpfr_init2(res_mpfr, 256);
 
     std::random_device rd;
     std::mt19937_64 gen(rd());
     std::uniform_int_distribution<uint64_t> dist(UINT_MIN_VAL, UINT_PI_4);
+
+    mpfr_init2(angle_mprf, 256);
+    mpfr_init2(res_mpfr, 256);
 
     uint64_t max_diff = 0;
     while (true) {
